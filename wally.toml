@@ -1,5 +1,5 @@
 [package]
-name = "yusuf/hitbox-service"
+name = "biack1st/hitbox-service"
 version = "1.0.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
