@@ -15,24 +15,40 @@ local validMethods = {
 }
 
 type hitboxSettings = {
-    Origin:Vector3,
-    Range: number,
-    Params: OverlapParams? 
+   
 }
 
-local function generateHitbox(currentSettings, backupType)
-    local method = currentSettings.method or backupType
+local function generateHitbox(currentSettings)
+    local method = currentSettings.Method:lower()
 
-    if method:lower() ==  "range" then
-        local range = currentSettings.Range
-        local origin = currentSettings.Origin
+    if method ==  "range" then
+        local range = currentSettings.Range or error("Range must be specified")
+        local origin = currentSettings.Origin or error("Origin must be specified")
         local hitboxObject = workspace:GetPartBoundsInRadius(origin, range)
+
+        return hitboxObject
+    elseif method == "box" then
+        local cframe = currentSettings.CFrame or error("CFrame must be specified")
+        local size = currentSettings.Size or error("Size must be specified")
+        local params = currentSettings.Params
+
+        local hitboxObject = workspace:GetPartBoundsInBox(cframe, size, params)
+
+        return hitboxObject
+    elseif method == "part" then
+        local part = currentSettings.Part or error("Part must be specified")
+        local params = currentSettings.Params
+
+        local hitboxObject = workspace:GetPartsInPart(part, params)
 
         return hitboxObject
     end
 end
 
-function module:CreateHitbox(hitboxType:string, hitboxSettings)
+function module:CreateHitbox(hitboxSettings)
+    if not hitboxSettings or typeof(hitboxSettings) ~= "table" then error(string.format("Expected table for hitbox settings, got %s", typeof(hitboxSettings))) return end
+    if not hitboxSettings.Method then error("Method must be specified") return end
+    if not table.find(validMethods, hitboxSettings.Method:lower()) then error("Specifed method is invalid.") end
 
     local hitbox = setmetatable({}, {})
 
@@ -40,10 +56,13 @@ function module:CreateHitbox(hitboxType:string, hitboxSettings)
     local startedEvent = Instance.new("BindableEvent")
     local touchedEvent = Instance.new("BindableEvent")
     local updatedEvent = Instance.new("BindableEvent")
-
+    local enteredEvent = Instance.new("BindableEvent")
+   
     hitbox.Stopped = stoppedEvent.Event
     hitbox.Started = startedEvent.Event
     hitbox.Touched = touchedEvent.Event
+    hitbox.Updated = updatedEvent.Event
+    hitbox.Entered = enteredEvent.Event
 
     local started = false
 
@@ -60,29 +79,35 @@ function module:CreateHitbox(hitboxType:string, hitboxSettings)
     end
 
     local function startConnections()
+    
         local function touched()
-            if started then
-                local currentSettings = hitbox._settings
-                local method = currentSettings.method or hitboxType
-
-                if method:lower() ==  "range" then
-                    local range = currentSettings.Range
-                    local origin = currentSettings.Origin 
-
-                    local hitboxObject = generateHitbox(currentSettings, method)
-
+            local success, err = pcall(function()
+                if started then
+                    local currentSettings = hitbox._settings
+    
+                    local hitboxObject = generateHitbox(currentSettings)
+    
                     for _, obj in ipairs(hitboxObject) do 
-                        if table.find(generateHitbox(currentSettings, method), obj) then
+                        if table.find(generateHitbox(currentSettings), obj) then
                             touchedEvent:Fire(obj)
                         end
-                    end
-                end               
+                    end              
+                end
+            end)
+            if not success then
+                disconnectConnections()
+                error(err)
             end
+            
         end
         
         local touchedConnection = RunService.Heartbeat:Connect(touched)
 
         table.insert(connections, touchedConnection)
+    end
+
+    function hitbox:GetState()
+        return started
     end
 
     function hitbox:Stop()
@@ -106,7 +131,7 @@ function module:CreateHitbox(hitboxType:string, hitboxSettings)
 
         self._settings = new
 
-        self.Updated:Fire(oldSettings, new)
+        updatedEvent:Fire(oldSettings, new)
     end
     
     hitbox._settings = hitboxSettings
