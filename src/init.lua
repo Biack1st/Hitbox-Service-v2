@@ -56,13 +56,11 @@ function module:CreateHitbox(hitboxSettings)
     local startedEvent = Instance.new("BindableEvent")
     local touchedEvent = Instance.new("BindableEvent")
     local updatedEvent = Instance.new("BindableEvent")
-    local enteredEvent = Instance.new("BindableEvent")
    
     hitbox.Stopped = stoppedEvent.Event
     hitbox.Started = startedEvent.Event
     hitbox.Touched = touchedEvent.Event
     hitbox.Updated = updatedEvent.Event
-    hitbox.Entered = enteredEvent.Event
 
     local started = false
 
